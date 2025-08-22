@@ -1,11 +1,14 @@
 from datetime import datetime
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+
+from app.auth import get_current_admin_user, get_current_user
 from app.database import get_db
 from app.models import User
-from app.schemas import UserResponse, UserUpdate, MessageResponse, PaginationParams, PaginatedResponse
-from app.auth import get_current_user, get_current_admin_user
+from app.schemas import (MessageResponse, PaginatedResponse, PaginationParams,
+                         UserResponse, UserUpdate)
 
 router = APIRouter()
 
@@ -118,4 +121,32 @@ async def toggle_admin(
     
     return MessageResponse(
         message=f"用户管理员权限已{'开启' if user.is_admin else '关闭'}"
+    )
+
+@router.post("/users/plugin-default", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def create_plugin_default_user(db: Session = Depends(get_db)):
+    """创建Chrome插件的默认用户（无需认证）"""
+    # 检查是否已存在默认用户
+    default_user = db.query(User).filter(User.username == "chrome_plugin_user").first()
+    if default_user:
+        return MessageResponse(
+            message="默认用户已存在",
+            data=UserResponse.from_orm(default_user)
+        )
+    
+    # 创建默认用户
+    default_user = User(
+        username="chrome_plugin_user",
+        email="chrome_plugin@example.com",
+        is_admin=False
+    )
+    default_user.set_password("chrome_plugin_password_123")
+    
+    db.add(default_user)
+    db.commit()
+    db.refresh(default_user)
+    
+    return MessageResponse(
+        message="默认用户创建成功",
+        data=UserResponse.from_orm(default_user)
     )

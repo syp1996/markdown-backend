@@ -1,11 +1,14 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+
+from app.auth import get_current_admin_user, get_current_user
 from app.database import get_db
 from app.models import Document, User
-from app.schemas import DocumentCreate, DocumentUpdate, DocumentResponse, MessageResponse, PaginationParams, PaginatedResponse
-from app.auth import get_current_user, get_current_admin_user
+from app.schemas import (DocumentCreate, DocumentResponse, DocumentUpdate,
+                         MessageResponse, PaginatedResponse, PaginationParams)
 
 router = APIRouter()
 
@@ -182,4 +185,52 @@ async def toggle_pin_document(
     
     return MessageResponse(
         message=f"文档已{'置顶' if document.is_pinned else '取消置顶'}"
+    )
+
+@router.post("/documents/plugin", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def create_document_from_plugin(
+    document_data: DocumentCreate,
+    db: Session = Depends(get_db)
+):
+    """从Chrome插件创建文档（无需认证）"""
+    # 获取或创建默认用户
+    default_user = db.query(User).filter(User.username == "chrome_plugin_user").first()
+    if not default_user:
+        # 如果默认用户不存在，创建一个
+        default_user = User(
+            username="chrome_plugin_user",
+            email="chrome_plugin@example.com",
+            is_admin=False
+        )
+        default_user.set_password("chrome_plugin_password_123")
+        db.add(default_user)
+        db.commit()
+        db.refresh(default_user)
+    
+    # 生成唯一的slug
+    base_slug = document_data.slug or document_data.title.lower().replace(' ', '-')
+    unique_slug = base_slug
+    counter = 1
+    
+    # 检查slug是否已存在，如果存在则添加数字后缀
+    while db.query(Document).filter(Document.slug == unique_slug).first():
+        unique_slug = f"{base_slug}-{counter}"
+        counter += 1
+    
+    # 创建文档数据副本并更新slug
+    doc_data = document_data.dict()
+    doc_data['slug'] = unique_slug
+    
+    document = Document(
+        **doc_data,
+        user_id=default_user.id
+    )
+    
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    
+    return MessageResponse(
+        message="文档创建成功",
+        data=DocumentResponse.from_orm(document)
     )
