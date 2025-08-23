@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (APIRouter, Depends, File, Form, HTTPException, Query,
+                     UploadFile, status)
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_admin_user, get_current_user
@@ -11,6 +12,54 @@ from app.schemas import (DocumentCreate, DocumentResponse, DocumentUpdate,
                          MessageResponse, PaginatedResponse, PaginationParams)
 
 router = APIRouter()
+
+@router.post("/documents/upload", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def upload_document(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    type: str = Form("markdown"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """上传Markdown文档"""
+    # 检查文件类型
+    if not file.filename.endswith('.md'):
+        raise HTTPException(status_code=400, detail="只支持Markdown文件(.md)")
+    
+    # 读取文件内容
+    try:
+        content = await file.read()
+        content_str = content.decode('utf-8')
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"文件读取失败: {str(e)}")
+    
+    # 生成slug
+    base_slug = title.lower().replace(' ', '-').replace('_', '-')
+    unique_slug = base_slug
+    counter = 1
+    
+    # 检查slug是否已存在
+    while db.query(Document).filter(Document.slug == unique_slug).first():
+        unique_slug = f"{base_slug}-{counter}"
+        counter += 1
+    
+    # 创建文档
+    document = Document(
+        title=title,
+        content={"markdown": content_str, "type": type},  # 将内容存储为JSON格式
+        slug=unique_slug,
+        status=0,  # draft
+        user_id=current_user.id
+    )
+    
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    
+    return MessageResponse(
+        message="文档上传成功",
+        data=DocumentResponse.from_orm(document)
+    )
 
 @router.get("/documents", response_model=PaginatedResponse)
 async def get_documents(
@@ -117,10 +166,9 @@ async def update_document(
 @router.delete("/documents/{document_id}", response_model=MessageResponse)
 async def delete_document(
     document_id: int,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """删除文档（软删除）"""
+    """删除文档（软删除）- 个人使用版本，无需认证"""
     document = db.query(Document).filter(
         Document.id == document_id,
         Document.deleted_at.is_(None)
@@ -128,10 +176,6 @@ async def delete_document(
     
     if not document:
         raise HTTPException(status_code=404, detail="文档不存在")
-    
-    # 检查权限
-    if document.user_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="没有权限删除此文档")
     
     # 软删除
     document.deleted_at = datetime.utcnow()
