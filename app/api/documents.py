@@ -5,7 +5,7 @@ from fastapi import (APIRouter, Depends, File, Form, HTTPException, Query,
                      UploadFile, status)
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_admin_user, get_current_user
+# 个人使用版本，无需认证
 from app.database import get_db
 from app.models import Document, User
 from app.schemas import (DocumentCreate, DocumentResponse, DocumentUpdate,
@@ -18,10 +18,9 @@ async def upload_document(
     file: UploadFile = File(...),
     title: str = Form(...),
     type: str = Form("markdown"),
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """上传Markdown文档"""
+    """上传Markdown文档 - 个人使用版本，无需认证"""
     # 检查文件类型
     if not file.filename.endswith('.md'):
         raise HTTPException(status_code=400, detail="只支持Markdown文件(.md)")
@@ -43,13 +42,26 @@ async def upload_document(
         unique_slug = f"{base_slug}-{counter}"
         counter += 1
     
+    # 获取或创建默认用户
+    default_user = db.query(User).filter(User.username == "default_user").first()
+    if not default_user:
+        default_user = User(
+            username="default_user",
+            email="default@example.com",
+            is_admin=False
+        )
+        default_user.set_password("default_password_123")
+        db.add(default_user)
+        db.commit()
+        db.refresh(default_user)
+    
     # 创建文档
     document = Document(
         title=title,
         content={"markdown": content_str, "type": type},  # 将内容存储为JSON格式
         slug=unique_slug,
         status=0,  # draft
-        user_id=current_user.id
+        user_id=default_user.id
     )
     
     db.add(document)
@@ -111,13 +123,25 @@ async def get_document(document_id: int, db: Session = Depends(get_db)):
 @router.post("/documents", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def create_document(
     document_data: DocumentCreate,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """创建文档"""
+    """创建文档 - 个人使用版本，无需认证"""
+    # 获取或创建默认用户
+    default_user = db.query(User).filter(User.username == "default_user").first()
+    if not default_user:
+        default_user = User(
+            username="default_user",
+            email="default@example.com",
+            is_admin=False
+        )
+        default_user.set_password("default_password_123")
+        db.add(default_user)
+        db.commit()
+        db.refresh(default_user)
+    
     document = Document(
         **document_data.dict(),
-        user_id=current_user.id
+        user_id=default_user.id
     )
     
     db.add(document)
@@ -133,10 +157,9 @@ async def create_document(
 async def update_document(
     document_id: int,
     document_update: DocumentUpdate,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """更新文档"""
+    """更新文档 - 个人使用版本，无需认证"""
     document = db.query(Document).filter(
         Document.id == document_id,
         Document.deleted_at.is_(None)
@@ -144,10 +167,6 @@ async def update_document(
     
     if not document:
         raise HTTPException(status_code=404, detail="文档不存在")
-    
-    # 检查权限
-    if document.user_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="没有权限修改此文档")
     
     # 更新字段
     update_data = document_update.dict(exclude_unset=True)
@@ -186,10 +205,9 @@ async def delete_document(
 @router.post("/documents/{document_id}/publish", response_model=MessageResponse)
 async def publish_document(
     document_id: int,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """发布文档"""
+    """发布文档 - 个人使用版本，无需认证"""
     document = db.query(Document).filter(
         Document.id == document_id,
         Document.deleted_at.is_(None)
@@ -197,10 +215,6 @@ async def publish_document(
     
     if not document:
         raise HTTPException(status_code=404, detail="文档不存在")
-    
-    # 检查权限
-    if document.user_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="没有权限发布此文档")
     
     document.status = 1  # published
     document.updated_at = datetime.utcnow()
@@ -211,10 +225,9 @@ async def publish_document(
 @router.post("/documents/{document_id}/pin", response_model=MessageResponse)
 async def toggle_pin_document(
     document_id: int,
-    current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
-    """切换文档置顶状态（仅管理员）"""
+    """切换文档置顶状态 - 个人使用版本，无需认证"""
     document = db.query(Document).filter(
         Document.id == document_id,
         Document.deleted_at.is_(None)
