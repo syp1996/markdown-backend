@@ -98,6 +98,34 @@ class PaginatedResponse(BaseSchema):
     current_page: int
     per_page: int
 
+# 搜索模型
+class DocumentSearchParams(BaseSchema):
+    q: str = Field(..., min_length=1, max_length=200, description="搜索关键词")
+    page: int = Field(default=1, ge=1, description="页码")
+    per_page: int = Field(default=10, ge=1, le=50, description="每页数量")
+    search_mode: str = Field(default="fulltext", pattern="^(basic|fulltext)$", description="搜索模式: basic或fulltext")
+    highlight: bool = Field(default=True, description="是否高亮显示匹配文本")
+
+class SearchHighlight(BaseSchema):
+    title: Optional[str] = None
+    excerpt: Optional[str] = None
+    content_preview: Optional[str] = None
+
+class DocumentSearchResult(DocumentResponse):
+    relevance_score: Optional[float] = Field(None, description="相关度分数")
+    highlights: Optional[SearchHighlight] = Field(None, description="高亮匹配文本")
+    content_preview: Optional[str] = Field(None, description="内容预览")
+
+class DocumentSearchResponse(BaseSchema):
+    items: List[DocumentSearchResult]
+    total: int
+    pages: int
+    current_page: int
+    per_page: int
+    query: str
+    search_mode: str
+    search_time_ms: Optional[float] = Field(None, description="搜索耗时(毫秒)")
+
 # 响应模型
 class MessageResponse(BaseSchema):
     message: str

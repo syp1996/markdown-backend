@@ -67,7 +67,7 @@ def check_documents():
     finally:
         db.close()
 
-def get_status_text(status):
+def get_status_text(status: int) -> str:
     """获取状态文本"""
     status_map = {
         0: "草稿",

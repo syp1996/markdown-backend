@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     debug: bool = Field(default=True, description="调试模式")
     secret_key: str = Field(default="dev-secret-key-change-in-production", description="密钥")
     
-    # 数据库配置
+    # 数据库配置 - 建议使用环境变量
     db_host: str = Field(default="rm-bp1ljbjb34n55su6uko.mysql.rds.aliyuncs.com", description="数据库主机")
     db_port: int = Field(default=3306, description="数据库端口")
     db_name: str = Field(default="markdown_manager", description="数据库名")
@@ -47,6 +47,7 @@ class Settings(BaseSettings):
             "http://127.0.0.1:8080",
             # Chrome扩展支持
             "chrome-extension://aahlmjdpqckpcoanbnoapbnenmlnnjma",
+             "chrome-extension://fddkcammljedmjlofijnaepjcpeppopp",
         ], 
         description="允许的跨域来源"
     )

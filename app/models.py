@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from passlib.hash import bcrypt
-from sqlalchemy import (BigInteger, Boolean, Column, DateTime, ForeignKey,
-                        Index, Integer, String, Text, UniqueConstraint)
+from sqlalchemy import (BigInteger, Boolean, DateTime, ForeignKey,
+                        Index, Integer, String, Text)
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -19,8 +19,8 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # 关联关系
     documents: Mapped[List["Document"]] = relationship("Document", back_populates="author")
@@ -51,7 +51,7 @@ class Category(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(200))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # 关联关系
     documents: Mapped[List["Document"]] = relationship("Document", back_populates="category")
@@ -75,11 +75,12 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False, comment='冗余字段，需与content中的H1标题同步')
     excerpt: Mapped[Optional[str]] = mapped_column(String(500), comment='冗余字段，自动从content中提取的文本摘要')
     content: Mapped[Optional[dict]] = mapped_column(JSON, comment='存储文档内容的块结构JSON对象')
+    content_text: Mapped[Optional[str]] = mapped_column(Text, comment='从content JSON中提取的文本内容，用于全文搜索')
     slug: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
     status: Mapped[int] = mapped_column(Integer, default=0, comment='0:draft, 1:published, 2:archived')
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     
     # 关联关系
