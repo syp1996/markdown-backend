@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from passlib.hash import bcrypt
 from sqlalchemy import (BigInteger, Boolean, DateTime, ForeignKey,
-                        Index, Integer, String, Text)
+                        Index, Integer, String, Text, Computed)
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -75,7 +75,11 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False, comment='冗余字段，需与content中的H1标题同步')
     excerpt: Mapped[Optional[str]] = mapped_column(String(500), comment='冗余字段，自动从content中提取的文本摘要')
     content: Mapped[Optional[dict]] = mapped_column(JSON, comment='存储文档内容的块结构JSON对象')
-    content_text: Mapped[Optional[str]] = mapped_column(Text, comment='从content JSON中提取的文本内容，用于全文搜索')
+    content_text: Mapped[Optional[str]] = mapped_column(
+        Text, 
+        Computed("(case when (json_valid(`content`) and (json_extract(`content`,'$.markdown') is not null)) then json_unquote(json_extract(`content`,'$.markdown')) when (json_valid(`content`) and (json_extract(`content`,'$.html') is not null)) then json_unquote(json_extract(`content`,'$.html')) else NULL end)"),
+        comment='从content JSON中提取的文本内容，用于全文搜索（生成列）'
+    )
     slug: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
     status: Mapped[int] = mapped_column(Integer, default=0, comment='0:draft, 1:published, 2:archived')
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)

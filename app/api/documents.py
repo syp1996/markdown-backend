@@ -130,7 +130,7 @@ async def upload_document(
         db.commit()
         db.refresh(default_user)
     
-    # 创建文档
+    # 创建文档（不包含content_text字段，因为它是生成列）
     document = Document(
         title=title,
         content={"markdown": content_str, "type": type},  # 将内容存储为JSON格式
@@ -364,7 +364,8 @@ async def create_document(
         else:
             doc_data = document_data.dict()
         
-        # 创建文档
+        # 创建文档（排除content_text字段，因为它是生成列）
+        doc_data.pop('content_text', None)  # 移除content_text字段
         document = Document(
             **doc_data,
             user_id=default_user.id,
@@ -573,6 +574,7 @@ async def create_document_from_plugin(
     # 创建文档数据副本并更新slug
     doc_data = document_data.dict()
     doc_data['slug'] = unique_slug
+    doc_data.pop('content_text', None)  # 移除content_text字段，因为它是生成列
     
     document = Document(
         **doc_data,
