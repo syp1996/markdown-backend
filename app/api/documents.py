@@ -150,10 +150,10 @@ async def upload_document(
 
 @router.get("/documents/search", response_model=DocumentSearchResponse)
 async def search_documents(
-    q: str = Query(..., min_length=1, max_length=200, description="搜索关键词"),
+    keyword: str = Query(..., min_length=1, max_length=200, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     per_page: int = Query(10, ge=1, le=50, description="每页数量"),
-    search_mode: str = Query("fulltext", pattern="^(basic|fulltext)$", description="搜索模式"),
+    search_mode: str = Query("basic", pattern="^(basic|fulltext)$", description="搜索模式"),
     highlight: bool = Query(True, description="是否高亮显示匹配文本"),
     db: Session = Depends(get_db)
 ):
@@ -186,12 +186,12 @@ async def search_documents(
             # 执行查询
             offset = (page - 1) * per_page
             results = db.execute(search_query, {
-                'search_term': q,
+                'search_term': keyword,
                 'offset': offset,
                 'limit': per_page
             }).fetchall()
             
-            total_result = db.execute(count_query, {'search_term': q}).fetchone()
+            total_result = db.execute(count_query, {'search_term': keyword}).fetchone()
             total = total_result.total if total_result else 0
             
         else:
@@ -199,15 +199,15 @@ async def search_documents(
             query = db.query(Document).filter(Document.deleted_at.is_(None))
             
             search_filter = (
-                Document.title.contains(q) |
-                Document.excerpt.contains(q) |
-                Document.content_text.contains(q)
+                Document.title.contains(keyword) |
+                Document.excerpt.contains(keyword) |
+                Document.content_text.contains(keyword)
             )
             
             query = query.filter(search_filter)
             query = query.order_by(
-                (~Document.title.contains(q)).asc(),
-                (~Document.excerpt.contains(q)).asc(),
+                (~Document.title.contains(keyword)).asc(),
+                (~Document.excerpt.contains(keyword)).asc(),
                 Document.updated_at.desc()
             )
             
@@ -247,16 +247,16 @@ async def search_documents(
                 result = DocumentSearchResult(
                     **doc_dict,
                     relevance_score=getattr(row, 'relevance_score', None),
-                    highlights=_generate_highlights(temp_doc, q) if highlight else None,
-                    content_preview=_generate_content_preview(row.content_text, q)
+                    highlights=_generate_highlights(temp_doc, keyword) if highlight else None,
+                    content_preview=_generate_content_preview(row.content_text, keyword)
                 )
                 search_results.append(result)
         else:
             for doc in results:
                 result = DocumentSearchResult(
                     **doc.to_dict(),
-                    highlights=_generate_highlights(doc, q) if highlight else None,
-                    content_preview=_generate_content_preview(doc.content_text, q)
+                    highlights=_generate_highlights(doc, keyword) if highlight else None,
+                    content_preview=_generate_content_preview(doc.content_text, keyword)
                 )
                 search_results.append(result)
         
@@ -269,7 +269,7 @@ async def search_documents(
             pages=pages,
             current_page=page,
             per_page=per_page,
-            query=q,
+            keyword=keyword,
             search_mode=search_mode,
             search_time_ms=round(search_time, 2)
         )

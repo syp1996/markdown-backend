@@ -100,7 +100,7 @@ class PaginatedResponse(BaseSchema):
 
 # 搜索模型
 class DocumentSearchParams(BaseSchema):
-    q: str = Field(..., min_length=1, max_length=200, description="搜索关键词")
+    keyword: str = Field(..., min_length=1, max_length=200, description="搜索关键词")
     page: int = Field(default=1, ge=1, description="页码")
     per_page: int = Field(default=10, ge=1, le=50, description="每页数量")
     search_mode: str = Field(default="fulltext", pattern="^(basic|fulltext)$", description="搜索模式: basic或fulltext")
@@ -122,7 +122,7 @@ class DocumentSearchResponse(BaseSchema):
     pages: int
     current_page: int
     per_page: int
-    query: str
+    keyword: str
     search_mode: str
     search_time_ms: Optional[float] = Field(None, description="搜索耗时(毫秒)")
 
