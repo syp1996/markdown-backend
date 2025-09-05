@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     db_port: int = Field(default=3306, description="数据库端口")
     db_name: str = Field(default="markdown_manager", description="数据库名")
     db_user: str = Field(default="markdown_user", description="数据库用户名")
-    db_password: str = Field(default="Syp19960424!", description="数据库密码")
+    db_password: str = Field(default="Syp19960424", description="数据库密码")
     
     # 数据库连接字符串
     @property

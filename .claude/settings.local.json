@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(python test_db_connection.py:*)",
+      "Bash(del test_db_connection.py)"
     ],
     "deny": [],
     "ask": []

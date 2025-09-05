@@ -32,10 +32,10 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def startup_event():
         """应用启动事件"""
-        print("🚀 FastAPI应用启动中...")
+        print("FastAPI应用启动中...")
         # 创建数据库表
         create_tables()
-        print("✅ 数据库表创建完成")
+        print("数据库表创建完成")
     
     @app.get("/")
     async def root():
